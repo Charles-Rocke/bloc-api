@@ -12,6 +12,12 @@ Flask = "^2.2.0"
 urllib3 = "^1.26.12"
 fastapi = "^0.88.0"
 uvicorn = "^0.20.0"
+Flask-Login = "^0.6.2"
+Flask-Migrate = "^4.0.4"
+Flask-SQLAlchemy = "^3.0.3"
+SQLAlchemy = "^2.0.9"
+webauthn = "^1.8.0"
+chardet = "^5.1.0"
 
 [tool.poetry.dev-dependencies]
 debugpy = "^1.6.2"

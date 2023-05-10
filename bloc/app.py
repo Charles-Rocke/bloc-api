@@ -1,19 +1,22 @@
-from flask import Flask
-
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
 from fastapi import FastAPI
+import sqlalchemy
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+import sqlalchemy
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
 
-db = SQLAlchemy()
-migrate = Migrate()
+
 def create_app():
 		app = FastAPI()
-		flask_app = Flask(__name__)
-		flask_app.config['SECRET_KEY'] = 'asdfghjkl'
-		flask_app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///db.sqlite3'
-		db.init_app(flask_app)
-		migrate.init_app(flask_app, db)
+		SQLALCHEMY_DATABASE_URL = "sqlite:///./sql_app.db"
+		# SQLALCHEMY_DATABASE_URL = "postgresql://user:password@postgresserver/db"
+		
+		from sql_app import database
+		
 	
 		# from .views import views
 		# from .auth import auth
@@ -25,7 +28,7 @@ def create_app():
 		# app.register_blueprint(util,url_prefix='/')
 		# app.register_blueprint(admin,url_prefix='/admin')
 
-		from models.models import Form, User, WebAuthnCredential
+		from sql_app.models import Form, User, WebAuthnCredential
 
 		#create_database(app)
 

@@ -1,18 +1,7 @@
 from fastapi import FastAPI
-import sqlalchemy
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-import sqlalchemy
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-
-
 
 def create_app():
 		app = FastAPI()
-		SQLALCHEMY_DATABASE_URL = "sqlite:///./sql_app.db"
 		# SQLALCHEMY_DATABASE_URL = "postgresql://user:password@postgresserver/db"
 		
 		from sql_app import database
@@ -28,7 +17,7 @@ def create_app():
 		# app.register_blueprint(util,url_prefix='/')
 		# app.register_blueprint(admin,url_prefix='/admin')
 
-		from sql_app.models import Form, User, WebAuthnCredential
+		from sql_app.models import User, WebAuthnCredential, EndUser, EndUserWebAuthnCredential
 
 		#create_database(app)
 

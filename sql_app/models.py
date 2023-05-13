@@ -1,31 +1,12 @@
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, LargeBinary
 from sqlalchemy.orm import relationship, backref
 import uuid
-from sql_app.database import Base
+from sqlalchemy.ext.declarative import declarative_base
 
+Base = declarative_base()
 
 def _str_uuid():
     return str(uuid.uuid4())
-
-
-class Form(Base):
-	
-	__tablename__ = "forms"
-	
-	id = Column(Integer, primary_key=True)
-	# logo (tbd)
-	# header
-	header = Column(String, nullable = True)
-	# fieldName
-	field_name = Column(String, nullable = True)
-	# primaryColor
-	primary_color = Column(String, nullable = True)
-	# secondaryColor
-	secondary_color = Column(String, nullable = True)
-	# companyName
-	company_name = Column(String, nullable = True)
-	# related table
-	user_email = Column(Integer, ForeignKey('users.email'))
 
 
 
@@ -39,13 +20,12 @@ class User(Base):
 	# users email
 	email = Column(String(150), unique = True)
 	# users form
-	forms = relationship('Form')
+	end_users = relationship("EndUser", backref=backref("users", cascade="all, delete"), lazy=True,)
 	credentials = relationship(
 		"WebAuthnCredential",
-		backref=backref("users", cascade="all, delete"),
+		backref=backref("user", cascade="all, delete"),
 		lazy=True,
   )
-	end_users = relationship("EndUser", backref=backref("users", cascade="all, delete"), lazy=True,)
 	
 
 # WebAuthnCredentials

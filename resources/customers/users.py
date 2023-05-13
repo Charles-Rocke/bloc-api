@@ -32,20 +32,12 @@ from sqlalchemy.orm import Session
 
 from sql_app import crud, models, schemas
 from sql_app.models import EndUserWebAuthnCredential, _str_uuid
-from sql_app.database import SessionLocal, engine
-
+from sql_app.database import get_db
+# analytics 
 from mixpanel import Mixpanel
 mp = Mixpanel("1ba15c80ce8bc4322c3cdbd7815f21e3")
 
-models.Base.metadata.create_all(bind=engine)
 
-# Dependency
-def get_db():
-	db = SessionLocal()
-	try:
-			yield db
-	finally:
-			db.close()
 
 
 
@@ -63,12 +55,13 @@ current_authentication_challenge	=	None
 # Default root endpoint
 @router.get("/")
 async def root():
-  return { "message": "Hello world" }
+  return { "message": "Hello from bloc" }
 
 
 # generate registration options
 #
 #
+# start end user sign up
 @router.get("/signup")
 def generate_signup_options(domain: str, domain_name: str, email: str):
 	
@@ -97,7 +90,8 @@ def generate_signup_options(domain: str, domain_name: str, email: str):
 
 # verify registration options
 #
-# recieve the request and parse
+#
+# verify end user sign up
 @router.post("/verify_signup")
 def verify_signup_options(request: bytes, domain: str, origin: str, user: str, db: Session = Depends(get_db)):
 	
@@ -112,20 +106,11 @@ def verify_signup_options(request: bytes, domain: str, origin: str, user: str, d
 			expected_origin=origin,
 	)
 	
-	print("if credential transports:")
 	if credential.response.transports:
-		print("credential:", credential.response.transports)
-		print("credential type:", type(credential.response.transports))
 		for transports in credential.response.transports:
-			print(transports)
-			print(type(transports))
-			print("transports value:", transports.value)
-			print("transports value type:", type(transports.value))
+			pass
 		# assign the value of the transport to be assigned to the user
-		user_transport = transports.value
 		user_transport_type = transports
-		print("user transport: ", user_transport)
-		print("user transport type: ", user_transport)
 
 		
 		# create new_user just like new_credential
@@ -147,14 +132,14 @@ def verify_signup_options(request: bytes, domain: str, origin: str, user: str, d
 					credential_transport = str(user_transport_type)
 					
 			))
-			printed_eu = crud.get_end_user_by_email(db, email=user)
-			print(printed_eu.org)
-			print(printed_eu.credentials)
+
 			# Note: you must supply the user_id who performed the event as the first parameter.
-			mp.track("Verified Signup", 'End User Signup Verified',  {
-				'Signup Verified': 'If Verified'
+			new_added_end_user = crud.get_end_user_by_email(db, email=user)
+			mp.track(new_added_end_user.id, 'End User API Signup Request',  {
+				'Request': 'If Verified',
+				'End User Username' : new_added_end_user.email,
+				'From User' : origin
 			})
-			print("if statement verified")
 			return	{"verified"	:	True}
 			
 	if not credential.response.transports :
@@ -174,17 +159,13 @@ def verify_signup_options(request: bytes, domain: str, origin: str, user: str, d
 					current_sign_count=verification.sign_count,
 					
 			))
-
-			# print end user data
-			printed_eu = crud.get_end_user_by_email(db, email=user)
-			print(printed_eu.org)
-			print(printed_eu.credentials)
 			# Note: you must supply the user_id who performed the event as the first parameter.
-			mp.track("Verified Signup", 'End User Signup Verified',  {
-				'Signup Verified': 'Else Verified',
-				'User' : origin
+			new_added_end_user = crud.get_end_user_by_email(db, email=user)
+			mp.track(new_added_end_user.id, 'End User API Signup Request',  {
+				'Request': 'Else Verified',
+				'End User Username' : new_added_end_user.email,
+				'From User' : origin
 			})
-			print("else statement verified")
 			return	{"verified"	:	True}
 		
 	else:
@@ -194,32 +175,13 @@ def verify_signup_options(request: bytes, domain: str, origin: str, user: str, d
 # generate authentication options
 #
 #
+# start end user login
 @router.get("/login")
 def generate_login_options(domain: str, email: str, db: Session = Depends(get_db)):
-	print("IN	GENERATE	AUTH	OPTIONS")
 	global	current_authentication_challenge
 	
-	
-	# get user from email
-	print("ASSIGNING	USER")
-	user = crud.get_end_user_by_email(db=db, email=email)
-	# user	=	User.query.filter_by(email=session['email']).first()
-	# who is user?
-	print(user.email)
-	# what is users username?
-	
-	
-	# get current user from session
-	#user = User.query.filter_by(email=session['email']).first()
-	# get the users
-	print(f"USER.CREDENTIALS:	{user.credentials}")
 	options	=	generate_authentication_options(
 			rp_id=domain,
-			# allow_credentials=[{
-			# 		"type":	"public-key",
-			# 		"id":	cred.credential_id,
-			# 		"transports":	cred.credential_transport
-			# }	for	cred	in	user.credentials],
 			user_verification=UserVerificationRequirement.REQUIRED,
 	)
 	
@@ -228,48 +190,57 @@ def generate_login_options(domain: str, email: str, db: Session = Depends(get_db
 	return	options_to_json(options)
 
 
+# verify end user login
 @router.post("/verify_login")
 def verify_login_options(request: bytes, domain: str, origin: str, user: str, db: Session = Depends(get_db)):
-	print("IN	verify	AUTH	OPTIONS")
+	print("print me")
 	global	current_authentication_challenge
 	
 	body = request
 
 	try:
-			credential	=	AuthenticationCredential.parse_raw(body)
+		print("in try")
+		print("credential")
+		credential	=	AuthenticationCredential.parse_raw(body)
 
-			#	Find	the	user's	corresponding	public	key
-			
-			user = crud.get_end_user_by_email(db=db, email=user)
-			user_credential	=	None
-			for	cred	in	user.credentials:
-				print(cred)
-				if	cred.credential_id	==	credential.raw_id:
-						user_credential	=	cred
+		#	Find	the	user's	corresponding	public	key
+		print("end_user")
+		end_user = crud.get_end_user_by_email(db=db, email=user)
+		print("end_user_credential")
+		end_user_credential	=	None
+		print("for loop")
+		for	cred	in	end_user.credentials:
+			print("if statement")
+			if	cred.credential_id	==	credential.raw_id:
+				print("end_user_credential = cred")
+				end_user_credential	=	cred
 
-			if	user_credential	is	None:
-				print("No cred found")
-				raise	Exception("Could	not	find	corresponding	public	key	in	DB")
+		if	end_user_credential	is	None:
+			raise	Exception("Could	not	find	corresponding	public	key	in	DB")
 
-			#	Verify	the	assertion
-			verification	=	verify_authentication_response(
-					credential=credential,
-					expected_challenge=current_authentication_challenge,
-					expected_rp_id=domain,
-					expected_origin=origin,
-					credential_public_key=user_credential.credential_public_key,
-					credential_current_sign_count=user_credential.current_sign_count,
-					require_user_verification=True,
-			)
+		#	Verify	the	assertion
+		print("verification_auth_response")
+		verification	=	verify_authentication_response(
+				credential=credential,
+				expected_challenge=current_authentication_challenge,
+				expected_rp_id=domain,
+				expected_origin=origin,
+				credential_public_key=end_user_credential.credential_public_key,
+				credential_current_sign_count=end_user_credential.current_sign_count,
+				require_user_verification=True,
+		)
 	except	Exception	as	err:
 			return	{"verified":	False,	"msg":	str(err),	"status":	400}
 
 	#	Update	our	credential's	sign	count	to	what	the	authenticator	says	it	is	now
-	user_credential.current_sign_count = verification.new_sign_count
-	# log user in
+	print("sign_count")
+	end_user_credential.current_sign_count = verification.new_sign_count
+
 	# Note: you must supply the user_id who performed the event as the first parameter.
-	mp.track("Verified Login", 'End User Signup Verified',  {
-		'Signup Verified': 'Else Verified',
-		'User' : origin
+	print("mixpanel")
+	mp.track(end_user.id, 'End User API Login Request',  {
+		'Request': 'Verified',
+		'End User Username': end_user.email,
+		'From User': origin
 	})
 	return	{"verified":	True}

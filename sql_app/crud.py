@@ -39,10 +39,6 @@ def create_user_credential(db: Session, credential: models.WebAuthnCredential):
 
 # users end users
 # read data
-from sqlalchemy.orm import Session
-
-from . import models, schemas
-
 
 def get_end_user(db: Session, user_id: int):
     return db.query(models.EndUser).filter(models.EndUser.id == user_id).first()

@@ -11,13 +11,16 @@ def get_user(db: Session, user_id: int):
 def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
 
+def get_user_by_api_key(db: Session, api_key: str):
+    return db.query(models.User).filter(models.User.api_key == api_key).first()
+
 
 def get_users(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.User).offset(skip).limit(limit).all()
 
 
-def create_user(db: Session, user: str):
-    db_user = models.User(email=user)
+def create_user(db: Session, email: str, pricing_plan: str, api_key: str):
+    db_user = models.User(email=email, pricing_plan=pricing_plan, api_key=api_key, login_count=0)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)

@@ -31,7 +31,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
 
 from sql_app import crud, models, schemas
-from sql_app.models import EndUserWebAuthnCredential, _str_uuid
+from sql_app.models import EndUserWebAuthnCredential, _str_uuid, User
 from sql_app.database import get_db
 # analytics 
 from mixpanel import Mixpanel
@@ -63,7 +63,7 @@ async def root():
 #
 # start end user sign up
 @router.get("/signup")
-def generate_signup_options(domain: str, domain_name: str, email: str):
+def generate_signup_options(api_key: str, domain: str, domain_name: str, user_email: str):
 	
 	global	current_registration_challenge
 	
@@ -71,7 +71,7 @@ def generate_signup_options(domain: str, domain_name: str, email: str):
 			rp_id=domain,
 			rp_name=domain_name,
 			user_id=_str_uuid(),
-			user_name=email,
+			user_name=user_email,
 			
 			authenticator_selection=AuthenticatorSelectionCriteria(
 					user_verification=UserVerificationRequirement.REQUIRED),
@@ -93,7 +93,7 @@ def generate_signup_options(domain: str, domain_name: str, email: str):
 #
 # verify end user sign up
 @router.post("/verify_signup")
-def verify_signup_options(request: bytes, domain: str, origin: str, user: str, db: Session = Depends(get_db)):
+def verify_signup_options(api_key: str, request: bytes, domain: str, domain_origin: str, user_email: str, db: Session = Depends(get_db)):
 	
 	body = request
 	
@@ -103,7 +103,7 @@ def verify_signup_options(request: bytes, domain: str, origin: str, user: str, d
 			credential=credential,
 			expected_challenge=current_registration_challenge,
 			expected_rp_id=domain,
-			expected_origin=origin,
+			expected_origin=domain_origin,
 	)
 	
 	if credential.response.transports:
@@ -115,13 +115,13 @@ def verify_signup_options(request: bytes, domain: str, origin: str, user: str, d
 		
 		# create new_user just like new_credential
 		# add user to api database
-		new_user = crud.get_end_user_by_email(db, email=user)
+		new_user = crud.get_end_user_by_email(db, email=user_email)
 		# if user already exists with that email
 		if new_user:
 			raise HTTPException(status_code=400, detail="Email already registered")
 		else:
-			crud.create_end_user(db=db, user=user, org=origin)
-			printed_eu = crud.get_end_user_by_email(db, email=user)
+			crud.create_end_user(db=db, user=user_email, org=domain_origin)
+			printed_eu = crud.get_end_user_by_email(db, email=user_email)
 			print(printed_eu.id)
 			# add new credential to current user
 			crud.create_end_user_credential(db=db, credential= EndUserWebAuthnCredential(
@@ -134,23 +134,38 @@ def verify_signup_options(request: bytes, domain: str, origin: str, user: str, d
 			))
 
 			# Note: you must supply the user_id who performed the event as the first parameter.
-			new_added_end_user = crud.get_end_user_by_email(db, email=user)
+			new_added_end_user = crud.get_end_user_by_email(db, email=user_email)
 			mp.track(new_added_end_user.id, 'End User API Signup Request',  {
 				'Request': 'If Verified',
 				'End User Username' : new_added_end_user.email,
-				'From User' : origin
+				'From User' : domain_origin
 			})
+			
+			# add parent user login count by on below
+			user = crud.get_user_by_api_key(db, api_key=api_key)
+			# check other pricing plans first
+			if user.pricing_plan != "starter":
+				user.login_count += 1
+			# check if User reached 20 logins and is on the starter plan
+			elif user.pricing_plan == "starter" and user.login_count < 20:
+				# increase the login count
+				user.login_count += 1
+			else:
+				return {"verified" : False,
+								"message" : "Reached max logins for this month. Upgrade plans to get unlimited logins"
+							 }
+			# end login count
 			return	{"verified"	:	True}
 			
 	if not credential.response.transports :
 		#	add	current	user to apoi database
-		new_user = crud.get_end_user_by_email(db, email=user)
+		new_user = crud.get_end_user_by_email(db, email=user_email)
 		
 		# if user already exists with that email
 		if new_user:
 			raise HTTPException(status_code=400, detail="Email already registered")
 		else:
-			crud.create_end_user(db=db, user=user, org=origin)
+			crud.create_end_user(db=db, user=user_email, org=domain_origin)
 		
 			# add new credential to current user
 			crud.create_end_user_credential(db=db, credential = EndUserWebAuthnCredential(
@@ -160,16 +175,31 @@ def verify_signup_options(request: bytes, domain: str, origin: str, user: str, d
 					
 			))
 			# Note: you must supply the user_id who performed the event as the first parameter.
-			new_added_end_user = crud.get_end_user_by_email(db, email=user)
+			new_added_end_user = crud.get_end_user_by_email(db, email=user_email)
 			mp.track(new_added_end_user.id, 'End User API Signup Request',  {
 				'Request': 'Else Verified',
 				'End User Username' : new_added_end_user.email,
-				'From User' : origin
+				'From User' : domain_origin
 			})
+			# add parent user login count by on below
+			user = crud.get_user_by_api_key(db, api_key=api_key)
+			# check other pricing plans first
+			if user.pricing_plan != "starter":
+				user.login_count += 1
+			# check if User reached 20 logins and is on the starter plan
+			elif user.pricing_plan == "starter" and user.login_count < 20:
+				# increase the login count
+				user.login_count += 1
+			else:
+				return {"verified" : False,
+								"message" : "Reached max logins for this month. Upgrade plans to get unlimited logins"
+							 }
+			# end login count
 			return	{"verified"	:	True}
 		
 	else:
 		return	{"verified":	False,	"msg":	"error in api",	"status":	400}
+
 
 
 # generate authentication options
@@ -177,7 +207,7 @@ def verify_signup_options(request: bytes, domain: str, origin: str, user: str, d
 #
 # start end user login
 @router.get("/login")
-def generate_login_options(domain: str, email: str, db: Session = Depends(get_db)):
+def generate_login_options(api_key: str, domain: str, user_email: str, db: Session = Depends(get_db)):
 	global	current_authentication_challenge
 	
 	options	=	generate_authentication_options(
@@ -192,7 +222,7 @@ def generate_login_options(domain: str, email: str, db: Session = Depends(get_db
 
 # verify end user login
 @router.post("/verify_login")
-def verify_login_options(request: bytes, domain: str, origin: str, user: str, db: Session = Depends(get_db)):
+def verify_login_options(api_key: str, request: bytes, domain: str, domain_origin: str, user_email: str, db: Session = Depends(get_db)):
 	print("print me")
 	global	current_authentication_challenge
 	
@@ -205,7 +235,7 @@ def verify_login_options(request: bytes, domain: str, origin: str, user: str, db
 
 		#	Find	the	user's	corresponding	public	key
 		print("end_user")
-		end_user = crud.get_end_user_by_email(db=db, email=user)
+		end_user = crud.get_end_user_by_email(db=db, email=user_email)
 		print("end_user_credential")
 		end_user_credential	=	None
 		print("for loop")
@@ -224,7 +254,7 @@ def verify_login_options(request: bytes, domain: str, origin: str, user: str, db
 				credential=credential,
 				expected_challenge=current_authentication_challenge,
 				expected_rp_id=domain,
-				expected_origin=origin,
+				expected_origin=domain_origin,
 				credential_public_key=end_user_credential.credential_public_key,
 				credential_current_sign_count=end_user_credential.current_sign_count,
 				require_user_verification=True,
@@ -241,6 +271,21 @@ def verify_login_options(request: bytes, domain: str, origin: str, user: str, db
 	mp.track(end_user.id, 'End User API Login Request',  {
 		'Request': 'Verified',
 		'End User Username': end_user.email,
-		'From User': origin
+		'From User': domain_origin
 	})
+	
+	# add parent user login count by on below
+	user = crud.get_user_by_api_key(db, api_key=api_key)
+	# check other pricing plans first
+	if user.pricing_plan != "starter":
+		user.login_count += 1
+	# check if User reached 20 logins and is on the starter plan
+	elif user.pricing_plan == "starter" and user.login_count < 20:
+		# increase the login count
+		user.login_count += 1
+	else:
+		return {"verified" : False,
+						"message" : "Reached max logins for this month. Upgrade plans to get unlimited logins"
+					 }
+	# end login count
 	return	{"verified":	True}

@@ -2,6 +2,7 @@ from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, LargeBinary
 from sqlalchemy.orm import relationship, backref
 import uuid
 from sqlalchemy.ext.declarative import declarative_base
+import math
 
 Base = declarative_base()
 
@@ -17,6 +18,8 @@ class User(Base):
 	id = Column(Integer, primary_key=True)
 	# user unique id/API key
 	uid = Column(String(40), default= _str_uuid, unique=True)
+	# user api key
+	api_key = Column(String(), unique=True)
 	# users email
 	email = Column(String(150), unique = True)
 	# users form
@@ -26,6 +29,10 @@ class User(Base):
 		backref=backref("user", cascade="all, delete"),
 		lazy=True,
   )
+	# pricing plan
+	pricing_plan = Column(String(10))
+	# total logins for pricing plan
+	login_count = Column(Integer)
 	
 
 # WebAuthnCredentials

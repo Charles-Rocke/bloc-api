@@ -74,7 +74,7 @@ def generate_signup_options(domain: str, domain_name: str, email: str):
 #
 # recieve the request and parse
 @router.post("/verify_signup")
-def verify_signup_options(request: bytes, domain: str, origin: str, user: str, db: Session = Depends(get_db)):
+def verify_signup_options(request: bytes, domain: str, domain_origin: str, email: str, pricing_plan: str, user_api_key: str, db: Session = Depends(get_db)):
 	
 	body = request
 	
@@ -84,7 +84,7 @@ def verify_signup_options(request: bytes, domain: str, origin: str, user: str, d
 			credential=credential,
 			expected_challenge=current_registration_challenge,
 			expected_rp_id=domain,
-			expected_origin=origin,
+			expected_origin=domain_origin,
 	)
 
 	if credential.response.transports:
@@ -96,17 +96,18 @@ def verify_signup_options(request: bytes, domain: str, origin: str, user: str, d
 		
 		# create new_user just like new_credential
 		# add user to api database
-		new_user = crud.get_user_by_email(db, email=user)
+		new_user = crud.get_user_by_email(db, email=email)
 
 		# if user already exists with that email
 		if new_user:
 			raise HTTPException(status_code=400, detail="Email already registered")
 		else:
-			crud.create_user(db=db, user=user)
+			print(f"pricing plan: {pricing_plan}")
+			crud.create_user(db=db, email=email, pricing_plan=pricing_plan, api_key=user_api_key)
 
 			# add new credential to current user
 			crud.create_user_credential(db=db, credential= WebAuthnCredential(
-					user_email = user,
+					user_email = email,
 					credential_id=verification.credential_id,
 					credential_public_key=verification.credential_public_key,
 					current_sign_count=verification.sign_count,
@@ -114,25 +115,26 @@ def verify_signup_options(request: bytes, domain: str, origin: str, user: str, d
 					
 			))
 			# Note: you must supply the user_id who performed the event as the first parameter.
-			new_added_user = crud.get_user_by_email(db, email=user)
+			new_added_user = crud.get_user_by_email(db, email=email)
 			mp.track(new_added_user.id, 'User API Signup Request',  {
 				'Request': 'If Verified',
 				'User Username' : new_added_user.email,
+				'Pricing plan' : pricing_plan,
 			})
 			return	{"verified"	:	True}
 	if not credential.response.transports :
 		#	add	current	user to apoi database
-		new_user = crud.get_user_by_email(db, email=user)
+		new_user = crud.get_user_by_email(db, email=email)
 		
 		# if user already exists with that email
 		if new_user:
 			raise HTTPException(status_code=400, detail="Email already registered")
 		else:
-			crud.create_user(db=db, user=user)
+			crud.create_user(db=db, email=email, pricing_plan=pricing_plan, api_key=user_api_key)
 		
 			# add new credential to current user
 			crud.create_user_credential(db=db, credential = WebAuthnCredential(
-					user_email = user,
+					user_email = email,
 					credential_id=verification.credential_id,
 					credential_public_key=verification.credential_public_key,
 					current_sign_count=verification.sign_count,
@@ -140,10 +142,11 @@ def verify_signup_options(request: bytes, domain: str, origin: str, user: str, d
 			))
 
 			# Note: you must supply the user_id who performed the event as the first parameter.
-			new_added_user = crud.get_user_by_email(db, email=user)
+			new_added_user = crud.get_user_by_email(db, email=email)
 			mp.track(new_added_user.id, 'User API Signup Request',  {
 				'Request': 'Else Verified',
 				'End User Username' : new_added_user.email,
+				'Pricing plan' : pricing_plan,
 			})
 			return	{"verified"	:	True}
 		
@@ -169,7 +172,7 @@ def generate_login_options(domain: str, email: str, db: Session = Depends(get_db
 
 
 @router.post("/verify_login")
-def verify_login_options(request: bytes, domain: str, origin: str, user: str, db: Session = Depends(get_db)):
+def verify_login_options(request: bytes, domain: str, domain_origin: str, email: str, db: Session = Depends(get_db)):
 	global	current_authentication_challenge
 	
 	body = request
@@ -177,7 +180,7 @@ def verify_login_options(request: bytes, domain: str, origin: str, user: str, db
 	try:
 			credential	=	AuthenticationCredential.parse_raw(body)
 			#	Find	the	user's	corresponding	public	key
-			user = crud.get_user_by_email(db=db, email=user)
+			user = crud.get_user_by_email(db=db, email=email)
 			user_credential	=	None
 			for	cred	in	user.credentials:
 					if	cred.credential_id	==	credential.raw_id:
@@ -191,7 +194,7 @@ def verify_login_options(request: bytes, domain: str, origin: str, user: str, db
 					credential=credential,
 					expected_challenge=current_authentication_challenge,
 					expected_rp_id=domain,
-					expected_origin=origin,
+					expected_origin=domain_origin,
 					credential_public_key=user_credential.credential_public_key,
 					credential_current_sign_count=user_credential.current_sign_count,
 					require_user_verification=True,

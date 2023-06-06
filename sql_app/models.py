@@ -33,6 +33,8 @@ class User(Base):
 	pricing_plan = Column(String(10))
 	# total logins for pricing plan
 	login_count = Column(Integer)
+	# user time zone
+	timezone = Column(String(50))  # Add the timezone field
 	
 
 # WebAuthnCredentials

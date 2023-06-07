@@ -130,7 +130,7 @@ def verify_signup_options(request: bytes, domain: str, domain_origin: str, email
 		if new_user:
 			raise HTTPException(status_code=400, detail="Email already registered")
 		else:
-			crud.create_user(db=db, email=email, pricing_plan=pricing_plan, api_key=user_api_key)
+			crud.create_user(db=db, email=email, pricing_plan=pricing_plan, api_key=user_api_key, timezone=user_timezone)
 		
 			# add new credential to current user
 			crud.create_user_credential(db=db, credential = WebAuthnCredential(

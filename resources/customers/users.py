@@ -124,11 +124,13 @@ def verify_signup_options(api_key: str, request: bytes, domain: str, domain_orig
 			# create new_user just like new_credential
 			# add user to api database
 			new_user = crud.get_end_user_by_email(db, email=user_email)
+			# get user by api key to link end users
+			user = crud.get_user_by_api_key(db, api_key=api_key)
 			# if user already exists with that email
 			if new_user:
 				raise HTTPException(status_code=400, detail="Email already registered")
 			else:
-				crud.create_end_user(db=db, user=user_email, org=domain_origin)
+				crud.create_end_user(db=db, user=user_email, origin=domain_origin, parent_org_id = user.id)
 				printed_eu = crud.get_end_user_by_email(db, email=user_email)
 				print(printed_eu.id)
 				# add new credential to current user
@@ -168,12 +170,13 @@ def verify_signup_options(api_key: str, request: bytes, domain: str, domain_orig
 		if not credential.response.transports :
 			#	add	current	user to apoi database
 			new_user = crud.get_end_user_by_email(db, email=user_email)
-			
+			# get user by api key to link end users
+			user = crud.get_user_by_api_key(db, api_key=api_key)
 			# if user already exists with that email
 			if new_user:
 				raise HTTPException(status_code=400, detail="Email already registered")
 			else:
-				crud.create_end_user(db=db, user=user_email, org=domain_origin)
+				crud.create_end_user(db=db, user=user_email, origin=domain_origin, parent_org_id = user.id)
 			
 				# add new credential to current user
 				crud.create_end_user_credential(db=db, credential = EndUserWebAuthnCredential(

@@ -1,10 +1,19 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, LargeBinary
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, LargeBinary, MetaData
 from sqlalchemy.orm import relationship, backref
 import uuid
 from sqlalchemy.ext.declarative import declarative_base
 import math
 
+
+convention={
+	"ix": "ix_%(column_0_label)s",
+	"uq": "uq_%(table_name)s_%(column_0_name)s",
+	"ck": "ck_%(table_name)s_`%(constraint_name)s`",
+	"fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+	"pk": "pk_%(table_name)s"
+}
 Base = declarative_base()
+Base.metadata = MetaData(naming_convention=convention)
 
 def _str_uuid():
     return str(uuid.uuid4())
@@ -36,6 +45,7 @@ class User(Base):
 	# user time zone
 	timezone = Column(String(50))  # Add the timezone field
 	
+	
 
 # WebAuthnCredentials
 class WebAuthnCredential(Base):
@@ -44,7 +54,7 @@ class WebAuthnCredential(Base):
 	__tablename__ = "credentials"
 	
 	id = Column(Integer, primary_key=True)
-	user_email = Column(Integer, ForeignKey("users.email"), nullable=False)
+	user_email = Column(String, ForeignKey("users.email"), nullable=False)
 	credential_id = Column(LargeBinary, nullable=False)
 	credential_public_key = Column(LargeBinary, nullable=False)
 	current_sign_count = Column(Integer, default=0)
@@ -61,10 +71,12 @@ class EndUser(Base):
 	__tablename__ = "endusers"
 
 	id = Column(Integer, primary_key=True)
+	# parent organization
+	parent_org = Column(Integer, ForeignKey("users.id"))
 	# end users username
 	email = Column(String())
 	# end users organization of origin
-	org = Column(Integer, ForeignKey("users.id"))
+	origin = Column(String())
 	# end users optional webauthn credential
 	credentials = relationship(
 		"EndUserWebAuthnCredential",

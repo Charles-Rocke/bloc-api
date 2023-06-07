@@ -1,8 +1,34 @@
 Hey there, you're probably here because your migrations aren't running correctly. Before you puch this computer try this command if you've already created changes in your models
 
-alembic revision --autogenerate -m "Put revision message here"
+alembic revision --autogenerate -m ""
 
 THEN...
 DON'T FORGET the command...
 
 alembic upgrade head
+
+# If you fuck up and you're getting pissed, delete the alemshit.ini file and initialize your db again
+in the alemshit.ini file add
+sqlalchemy.url = db_url_here
+
+# env.py file below
+from	sql_app.models	import	Base
+target_metadata	=	Base.metadata
+
+url	=	config.get_main_option("sqlalchemy.url")
+context.configure(
+	url=url,
+	target_metadata=target_metadata,
+	literal_binds=True,
+	dialect_opts={"paramstyle":	"named"},
+	render_as_batch=True
+)
+
+with	connectable.connect()	as	connection:
+		context.configure(
+			connection=connection,
+			target_metadata=target_metadata,
+			render_as_batch=True,
+		)
+
+# create a new postgres database below

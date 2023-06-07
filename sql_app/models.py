@@ -42,7 +42,7 @@ class WebAuthnCredential(Base):
 	__tablename__ = "credentials"
 	
 	id = Column(Integer, primary_key=True)
-	user_email = Column(Integer, ForeignKey("users.email"), nullable=False)
+	user_email = Column(String, ForeignKey("users.email"), nullable=False)
 	credential_id = Column(LargeBinary, nullable=False)
 	credential_public_key = Column(LargeBinary, nullable=False)
 	current_sign_count = Column(Integer, default=0)

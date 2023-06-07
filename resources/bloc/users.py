@@ -45,7 +45,7 @@ async def root():
 #
 #
 @router.get("/signup")
-def generate_signup_options(domain: str, domain_name: str, email: str):
+def generate_signup_options(domain: str, domain_name: str, email: str, db: Session = Depends(get_db)):
 	# send request to endpoint to generate options
 	global	current_registration_challenge
 	
@@ -74,7 +74,7 @@ def generate_signup_options(domain: str, domain_name: str, email: str):
 #
 # recieve the request and parse
 @router.post("/verify_signup")
-def verify_signup_options(request: bytes, domain: str, domain_origin: str, email: str, pricing_plan: str, user_api_key: str, db: Session = Depends(get_db)):
+def verify_signup_options(request: bytes, domain: str, domain_origin: str, email: str, pricing_plan: str, user_api_key: str, user_timezone: str,db: Session = Depends(get_db)):
 	
 	body = request
 	
@@ -103,7 +103,7 @@ def verify_signup_options(request: bytes, domain: str, domain_origin: str, email
 			raise HTTPException(status_code=400, detail="Email already registered")
 		else:
 			print(f"pricing plan: {pricing_plan}")
-			crud.create_user(db=db, email=email, pricing_plan=pricing_plan, api_key=user_api_key)
+			crud.create_user(db=db, email=email, pricing_plan=pricing_plan, api_key=user_api_key, timezone=user_timezone)
 
 			# add new credential to current user
 			crud.create_user_credential(db=db, credential= WebAuthnCredential(
@@ -117,7 +117,7 @@ def verify_signup_options(request: bytes, domain: str, domain_origin: str, email
 			# Note: you must supply the user_id who performed the event as the first parameter.
 			new_added_user = crud.get_user_by_email(db, email=email)
 			mp.track(new_added_user.id, 'User API Signup Request',  {
-				'Request': 'If Verified',
+				'Request': 'Signed up with Transports',
 				'User Username' : new_added_user.email,
 				'Pricing plan' : pricing_plan,
 			})
@@ -130,7 +130,7 @@ def verify_signup_options(request: bytes, domain: str, domain_origin: str, email
 		if new_user:
 			raise HTTPException(status_code=400, detail="Email already registered")
 		else:
-			crud.create_user(db=db, email=email, pricing_plan=pricing_plan, api_key=user_api_key)
+			crud.create_user(db=db, email=email, pricing_plan=pricing_plan, api_key=user_api_key, timezone=user_timezone)
 		
 			# add new credential to current user
 			crud.create_user_credential(db=db, credential = WebAuthnCredential(
@@ -144,7 +144,7 @@ def verify_signup_options(request: bytes, domain: str, domain_origin: str, email
 			# Note: you must supply the user_id who performed the event as the first parameter.
 			new_added_user = crud.get_user_by_email(db, email=email)
 			mp.track(new_added_user.id, 'User API Signup Request',  {
-				'Request': 'Else Verified',
+				'Request': 'Signed up with no Transports',
 				'End User Username' : new_added_user.email,
 				'Pricing plan' : pricing_plan,
 			})

@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyz
+*.pyzw
+*.pyi
+*.egg-info/
+dist/
+build/
+*.egg
+*.whl
+
+# Virtual environment
+venv/
+.venv
+*.env
+
+# Replit
+.replit
+replit.nix
+poetry.lock
+pyproject.toml
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Miscellaneous
+*.DS_Store
+*.bak
+*.tmp
+
+# app
+website/util
+Makefile
+start.sh
+
+deployscript.txt

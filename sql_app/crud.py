@@ -62,8 +62,8 @@ def get_end_users(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.EndUser).offset(skip).limit(limit).all()
 
 # create end user
-def create_end_user(db: Session, user: str, origin: str, parent_org_id: int):
-    db_end_user = models.EndUser(email=user, origin=origin, parent_org = parent_org_id)
+def create_end_user(db: Session, user: str, origin: str, parent_org: int):
+    db_end_user = models.EndUser(email=user, origin=origin, parent_org = parent_org)
     db.add(db_end_user)
     db.commit()
     db.refresh(db_end_user)

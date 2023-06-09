@@ -33,6 +33,7 @@ class User(Base):
 	email = Column(String(150), unique = True)
 	# users form
 	end_users = relationship("EndUser", backref=backref("users", cascade="all, delete"), lazy=True,)
+	# users credentials
 	credentials = relationship(
 		"WebAuthnCredential",
 		backref=backref("user", cascade="all, delete"),
@@ -92,7 +93,7 @@ class EndUserWebAuthnCredential(Base):
 	__tablename__ = "endusercredentials"
 	
 	id = Column(Integer, primary_key=True)
-	end_user_id = Column(Integer, ForeignKey("endusers.id"))
+	end_user = Column(Integer, ForeignKey("endusers.id"))
 	credential_id = Column(LargeBinary, nullable=False)
 	credential_public_key = Column(LargeBinary, nullable=False)
 	current_sign_count = Column(Integer, default=0)

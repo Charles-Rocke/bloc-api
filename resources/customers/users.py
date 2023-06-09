@@ -130,12 +130,12 @@ def verify_signup_options(api_key: str, request: bytes, domain: str, domain_orig
 			if new_user:
 				raise HTTPException(status_code=400, detail="Email already registered")
 			else:
-				crud.create_end_user(db=db, user=user_email, origin=domain_origin, parent_org_id = user.id)
-				printed_eu = crud.get_end_user_by_email(db, email=user_email)
-				print(printed_eu.id)
+				crud.create_end_user(db=db, user=user_email, origin=domain_origin, parent_org = user.id)
+				new_end_user = crud.get_end_user_by_email(db, email=user_email)
+				print(new_end_user.id)
 				# add new credential to current user
 				crud.create_end_user_credential(db=db, credential= EndUserWebAuthnCredential(
-						end_user_id = printed_eu.id,
+						end_user = new_end_user.id,
 						credential_id=verification.credential_id,
 						credential_public_key=verification.credential_public_key,
 						current_sign_count=verification.sign_count,
@@ -144,10 +144,9 @@ def verify_signup_options(api_key: str, request: bytes, domain: str, domain_orig
 				))
 	
 				# Note: you must supply the user_id who performed the event as the first parameter.
-				new_added_end_user = crud.get_end_user_by_email(db, email=user_email)
-				mp.track(new_added_end_user.id, 'End User API Signup Request',  {
+				mp.track(new_end_user.id, 'End User API Signup Request',  {
 					'Request': 'If Verified',
-					'End User Username' : new_added_end_user.email,
+					'End User Username' : new_end_user.email,
 					'From User' : domain_origin
 				})
 				
@@ -156,10 +155,12 @@ def verify_signup_options(api_key: str, request: bytes, domain: str, domain_orig
 				# check other pricing plans first
 				if user.pricing_plan != "starter":
 					user.login_count += 1
+					db.commit()
 				# check if User reached 20 logins and is on the starter plan
 				elif user.pricing_plan == "starter" and user.login_count < 20:
 					# increase the login count
 					user.login_count += 1
+					db.commit()
 				else:
 					return {"verified" : False,
 									"message" : "Reached max logins for this month. Upgrade plans to get unlimited logins"
@@ -168,28 +169,28 @@ def verify_signup_options(api_key: str, request: bytes, domain: str, domain_orig
 				return	{"verified"	:	True}
 				
 		if not credential.response.transports :
-			#	add	current	user to apoi database
-			new_user = crud.get_end_user_by_email(db, email=user_email)
+			#	add	current	user to api database
+			new_end_user = crud.get_end_user_by_email(db, email=user_email)
 			# get user by api key to link end users
 			user = crud.get_user_by_api_key(db, api_key=api_key)
 			# if user already exists with that email
-			if new_user:
+			if new_end_user:
 				raise HTTPException(status_code=400, detail="Email already registered")
 			else:
-				crud.create_end_user(db=db, user=user_email, origin=domain_origin, parent_org_id = user.id)
-			
+				crud.create_end_user(db=db, user=user_email, origin=domain_origin, parent_org = user.id)
+				new_end_user = crud.get_end_user_by_email(db, email=user_email)
 				# add new credential to current user
 				crud.create_end_user_credential(db=db, credential = EndUserWebAuthnCredential(
-						credential_id=verification.credential_id,
-						credential_public_key=verification.credential_public_key,
-						current_sign_count=verification.sign_count,
+					end_user = new_end_user.id,
+					credential_id=verification.credential_id,
+					credential_public_key=verification.credential_public_key,
+					current_sign_count=verification.sign_count
 						
 				))
 				# Note: you must supply the user_id who performed the event as the first parameter.
-				new_added_end_user = crud.get_end_user_by_email(db, email=user_email)
-				mp.track(new_added_end_user.id, 'End User API Signup Request',  {
+				mp.track(new_end_user.id, 'End User API Signup Request',  {
 					'Request': 'Else Verified',
-					'End User Username' : new_added_end_user.email,
+					'End User Username' : new_end_user.email,
 					'From User' : domain_origin
 				})
 				# add parent user login count by on below
@@ -197,10 +198,12 @@ def verify_signup_options(api_key: str, request: bytes, domain: str, domain_orig
 				# check other pricing plans first
 				if user.pricing_plan != "starter":
 					user.login_count += 1
+					db.commit()
 				# check if User reached 20 logins and is on the starter plan
 				elif user.pricing_plan == "starter" and user.login_count < 20:
 					# increase the login count
 					user.login_count += 1
+					db.commit()
 				else:
 					return {"verified" : False,
 									"message" : "Reached max logins for this month. Upgrade plans to get unlimited logins"
@@ -300,10 +303,12 @@ def verify_login_options(api_key: str, request: bytes, domain: str, domain_origi
 		# check other pricing plans first
 		if user.pricing_plan != "starter":
 			user.login_count += 1
+			db.commit()
 		# check if User reached 20 logins and is on the starter plan
 		elif user.pricing_plan == "starter" and user.login_count < 20:
 			# increase the login count
 			user.login_count += 1
+			db.commit()
 		else:
 			return {"verified" : False,
 							"message" : "Reached max logins for this month. Upgrade plans to get unlimited logins"

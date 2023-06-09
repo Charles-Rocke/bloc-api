@@ -37,5 +37,4 @@ logs/
 website/util
 Makefile
 start.sh
-
 deployscript.txt
